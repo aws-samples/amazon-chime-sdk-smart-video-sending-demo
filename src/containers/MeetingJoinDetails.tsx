@@ -58,7 +58,7 @@ const MeetingJoinDetails = () => {
           <ModalHeader title={`Unable to join meeting: ${meetingId}`} />
           <ModalBody>
             <StyledP>
-              There was an issue finding that meeting. The meeting may have already ended, or your authorization may have expired.
+              Failed to join the meeting. {error}
             </StyledP>
           </ModalBody>
           <ModalButtonGroup

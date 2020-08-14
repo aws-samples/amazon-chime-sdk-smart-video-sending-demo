@@ -14,9 +14,11 @@ exports.onconnect = async event => {
 
   const meetingId = event.queryStringParameters.meetingId;
   const attendeeId = event.queryStringParameters.attendeeId;
-  if (!meetingId || !attendeeId) {
-    console.error('Missing meetingId or attendeeId');
-    return { statusCode: 400, body: 'Must have meetingId and attendeeId to connect' };
+  const attendeeRole = event.queryStringParameters.attendeeRole;
+
+  if (!meetingId || !attendeeId || !attendeeRole) {
+    console.error('Missing meetingId, attendeeId or attendeeRole');
+    return { statusCode: 400, body: 'Must have meetingId, attendeeId and attendeeRole to connect' };
   }
 
   try {
@@ -26,24 +28,28 @@ exports.onconnect = async event => {
         MeetingId: { S: meetingId },
         AttendeeId: { S: attendeeId },
         ConnectionId: { S: event.requestContext.connectionId },
+        AttendeeRole: { S: attendeeRole },
         TTL: { N: '' + oneDayFromNow }
       }
     }).promise();
-    return { statusCode: 200, body: 'Connected.' };
   } catch (e) {
     console.error(`error connecting: ${e.message}`);
     return { statusCode: 500, body: 'Failed to connect: ' + JSON.stringify(e) };
   }
+
+  return { statusCode: 200, body: 'Connected.' };
 };
 
 exports.ondisconnect = async event => {
   console.log('ondisconnect event:', JSON.stringify(event, null, 2));
+
   const connectionId = event.requestContext.connectionId;
 
   try {
     const connectionObj = await getConnectionObj(connectionId);
     const meetingId = connectionObj.MeetingId.S;
     const attendeeId = connectionObj.AttendeeId.S;
+    const attendeeRole = connectionObj.AttendeeRole.S;
 
     await ddb.deleteItem({
       TableName: VIDEO_SENDINGS_TABLE,
@@ -52,11 +58,9 @@ exports.ondisconnect = async event => {
         MeetingId: { S: meetingId },
       }
     }).promise();
-
-    // Some one left the meeting, need to check if need to promote another to send video
-    await promotePendingAttendee(event, meetingId);
   } catch (e) {
     console.error(`Failed to update VIDEO_SENDINGS_TABLE ondisconnect: ${e}`);
+    return { statusCode: 500, body: 'Failed to disconnect: ' + JSON.stringify(e) };
   }
 
   try {
@@ -66,20 +70,28 @@ exports.ondisconnect = async event => {
         ConnectionId: { S: connectionId },
       }
     }).promise();
-    return { statusCode: 200, body: 'Disconnected.' };
   } catch (e) {
-    console.error(`Failed to disconnect with error: ${e}`);
+    console.error(`Failed to update CONNECTION_TABLE ondisconnect: ${e}`);
     return { statusCode: 500, body: 'Failed to disconnect: ' + JSON.stringify(e) };
   }
+
+  // If a student is disconnected, notify the instructor about this change
+  if (attendeeRole === 'student') {
+    await getInstructorAndSendVideoEnabledAttendees(event, meetingId);
+  }
+
+  return { statusCode: 200, body: 'Disconnected.' };
 };
 
 exports.sendmessage = async event => {
   console.log('sendmessage event:', JSON.stringify(event, null, 2));
-  const message = JSON.parse(event.body).data;
+
+  const message = JSON.parse(JSON.parse(event.body).data);
   const connectionId = event.requestContext.connectionId;
-  const messageType = JSON.parse(message).type;
-  
-  let responseMsg = {};
+  const messageType = message.type;
+  const messagePayload = message.payload;
+
+  let responseMsg;
 
   if (messageType === "ping") {
     responseMsg = {
@@ -90,66 +102,53 @@ exports.sendmessage = async event => {
     const connectionObj = await getConnectionObj(connectionId);
     const meetingId = connectionObj.MeetingId.S;
     const attendeeId = connectionObj.AttendeeId.S;
+    const attendeeRole = connectionObj.AttendeeRole.S;
 
-    if (messageType === "start-video") {
-      // Check total ppl count (sending video + pending sending video)
+    if (messageType === "list-available-videos" && attendeeRole === 'instructor') {
+      try {
+         await sendVideoEnabledAttendeesToInstructor(event, meetingId, connectionId);
+      } catch (e) {
+        console.error(`Failed to send video-enabled attendees to instructor: ${e.message}`);
+        return { statusCode: 500, body: e.stack };
+      }
+      return { statusCode: 200, body: 'Data sent.' };
+    } else if (messageType === "start-video") {
       console.log("messageType is start-video");
-      const attendees = await ddb.query({
-        TableName: VIDEO_SENDINGS_TABLE,
-        KeyConditionExpression: "MeetingId = :meetingId",
-        ExpressionAttributeValues: {
-          ":meetingId": { S: meetingId },
-        },
-        Select: 'COUNT',
-      }).promise();
-      const attendeesCount = JSON.parse(attendees.Count);
+      let sendingVideo;
+
+      // If it's instructor's video, start it directly
+      if (attendeeRole === 'instructor') {
+        sendingVideo = true;
+        responseMsg = {
+          type: "start-video",
+          message: "Start instructor video directly"
+        };
+      }
+      // If it's student's video, simply notify the instructor without starting the video
+      else if (attendeeRole === 'student') {
+        sendingVideo = false;
+      }
 
       try {
         await ddb.putItem({
           TableName: VIDEO_SENDINGS_TABLE,
           Item: {
             AttendeeId: { S: attendeeId },
+            AttendeeRole: { S: attendeeRole },
             MeetingId: { S: meetingId },
             ConnectionId: { S: connectionId },
-            SendingVideoState: { BOOL: true },
+            SendingVideoState: { BOOL: sendingVideo },
             SendingTime: { N: '' + Date.now()},
             TTL: { N: '' + oneDayFromNow }
           }
         }).promise();
-      } catch(e) {
+      } catch (e) {
         console.error(`error adding to VIDEO_SENDINGS_TABLE: ${e.message}`);
         return { statusCode: 500, body: JSON.stringify(e) };
       }
-      // If < 16 ppl in the table, the attendee can send video
-      if (attendeesCount < MAX_VIDEO_NUMBER) {
-        console.log("attendeesCount < 16");
-        responseMsg = {
-          type: "start-video",
-          message: "Fewer than 16 attendees, send video!"
-        };
-      } else {
-        // If >= 16 ppl in the table, the 'oldest' attendee who is sending video should stop
-        console.log("attendeesCount >= 16");
-        const sendingAttendees = await ddb.query({
-          TableName: VIDEO_SENDINGS_TABLE,
-          IndexName: "TimeIndex",
-          KeyConditionExpression: "MeetingId = :meetingId",
-          ExpressionAttributeValues: {
-            ":meetingId": { S: meetingId },
-            ":isSending": { BOOL: true }
-          },
-          FilterExpression: "SendingVideoState = :isSending"
-        }).promise();
 
-        console.log("sendingAttendees", JSON.stringify(sendingAttendees));
-        const oldestAttendee = sendingAttendees.Items[0];
-        await downgradeActiveAttendee(event, oldestAttendee.ConnectionId.S, oldestAttendee.AttendeeId.S, meetingId);
-
-        responseMsg = {
-          type: "start-video",
-          message: "You are set to send video!"
-        };
-      }
+      // Notify instructor (if any) with the latest attendee info
+      await getInstructorAndSendVideoEnabledAttendees(event, meetingId);
     }
     else if (messageType === "stop-video") {
       // Remove the attendee from the table, and send back stop message
@@ -162,25 +161,67 @@ exports.sendmessage = async event => {
             MeetingId: { S: meetingId },
           }
         }).promise();
-        
       } catch (e) {
         console.error(`Failed to remove item: ${e}`);
       }
-      // The attendee stops the video sending, need to check if need to promote another to send video
-      await promotePendingAttendee(event, meetingId);
-      
+
       responseMsg = {
         type: "stop-video"
       };
+
+      // Notify instructor (if any) with the latest attendee info
+      await getInstructorAndSendVideoEnabledAttendees(event, meetingId);
+    }
+    else if (messageType === "toggle-student-video") {
+      console.log("messageType is toggle-student-video");
+
+      const targetAttendeeId = messagePayload.attendeeId;
+      const targetAttendeeConnection = await getConnectionFromMeetingIdAndAttendeeId(meetingId, targetAttendeeId);
+      if (attendeeRole === 'instructor' && targetAttendeeConnection) {
+        try {
+          await ddb.putItem({
+            TableName: VIDEO_SENDINGS_TABLE,
+            Item: {
+              AttendeeId: { S: targetAttendeeId },
+              AttendeeRole: { S: targetAttendeeConnection.attendeeRole },
+              MeetingId: { S: meetingId },
+              ConnectionId: { S: targetAttendeeConnection.connectionId },
+              SendingVideoState: { BOOL: messagePayload.isSendingVideo },
+              SendingTime: { N: '' + Date.now()},
+              TTL: { N: '' + oneDayFromNow }
+            }
+          }).promise();
+        } catch(e) {
+          console.error(`error updating VIDEO_SENDINGS_TABLE on toggle-student-video: ${e.message}`);
+          return { statusCode: 500, body: JSON.stringify(e) };
+        }
+
+        try {
+          await postToConnection(apigwManagementApi(event), targetAttendeeConnection.connectionId, JSON.stringify({
+            type: messagePayload.isSendingVideo ? 'start-video' : "stop-video"
+          }));
+        } catch (e) {
+          console.error(`Failed to post message on toggle-student-video: ${e.message}`);
+          return { statusCode: 500, body: e.stack };
+        }
+
+        try {
+          await sendVideoEnabledAttendeesToInstructor(event, meetingId, connectionId);
+        } catch (e) {
+          console.error(`Failed to send video-enabled attendees to instructor: ${e.message}`);
+          return { statusCode: 500, body: e.stack };
+        }
+      }
     }
   }
-  
+
   try {
     await postToConnection(apigwManagementApi(event), connectionId, JSON.stringify(responseMsg));
   } catch (e) {
     console.error(`Failed to post message: ${e.message}`);
     return { statusCode: 500, body: e.stack };
   }
+
   return { statusCode: 200, body: 'Data sent.' };
 };
 
@@ -199,74 +240,6 @@ exports.ping = async event => {
     return { statusCode: 500, body: e.stack };
   }
   return { statusCode: 200, body: 'Pong!.' };
-};
-
-const promotePendingAttendee = async (event, meetingId) => {
-  const notSendingAttendees = await ddb.query({
-    TableName: VIDEO_SENDINGS_TABLE,
-    IndexName: "TimeIndex",
-    KeyConditionExpression: "MeetingId = :meetingId",
-    ExpressionAttributeValues: {
-      ":meetingId": { S: meetingId },
-      ":isSending": { BOOL: false }
-    },
-    FilterExpression: "SendingVideoState = :isSending"
-  }).promise();
-
-  console.log("notSendingAttendees", JSON.stringify(notSendingAttendees));
-  const notSendingcount = JSON.parse(notSendingAttendees.Count);
-  const sendingCount = JSON.parse(notSendingAttendees.ScannedCount) - JSON.parse(notSendingAttendees.Count);
-
-  if (sendingCount < MAX_VIDEO_NUMBER && notSendingcount > 0) {
-    const attendeeToSend = notSendingAttendees.Items[0];
-    const msg = {
-      type: "start-video",
-      message: "Someone left, send video!"
-    };
-    try {
-      await postToConnection(apigwManagementApi(event), attendeeToSend.ConnectionId.S, JSON.stringify(msg));
-      
-      await ddb.updateItem({
-        TableName: VIDEO_SENDINGS_TABLE,
-        Key: {
-          MeetingId: { S: meetingId },
-          AttendeeId: { S: attendeeToSend.AttendeeId.S },
-        },
-        UpdateExpression: "SET SendingVideoState = :isSending, SendingTime = :sendingTime",
-        ExpressionAttributeValues: {
-          ":isSending": { BOOL: true },
-          ":sendingTime": { N: '' + Date.now() },
-        },
-      }).promise();
-    } catch (e) {
-      console.error(`Failed to promote pending attendee ${e.message}`);
-    }
-  }
-};
-
-const downgradeActiveAttendee = async (event, connectionId, attendeeId, meetingId) => {
-  const msg = {
-    type: "stop-video",
-    message: "Someone else need to share video"
-  };
-  try {
-    await postToConnection(apigwManagementApi(event), connectionId, JSON.stringify(msg));
-
-    await ddb.updateItem({
-      TableName: VIDEO_SENDINGS_TABLE,
-      Key: {
-        AttendeeId: { S: attendeeId },
-        MeetingId: { S: meetingId },
-      },
-      UpdateExpression: "SET SendingVideoState = :isSending, SendingTime = :sendingTime",
-      ExpressionAttributeValues: {
-        ":isSending": { BOOL: false },
-        ":sendingTime": { N: '' + Date.now() },
-      },
-    }).promise();
-  } catch (e) {
-    console.error(`Failed to downgrade active attendee ${e.message}`);
-  }
 };
 
 const getConnectionObj = async (connectionId) => {
@@ -288,6 +261,8 @@ const apigwManagementApi = event => {
 };
 
 const postToConnection = async (postApi, connectionId, message) => {
+  if (!message) { return; }
+
   try {
     await postApi.postToConnection({ ConnectionId: connectionId, Data: message }).promise();
     console.log('Successfully posted to connection with ConnectionId ' + connectionId);
@@ -301,3 +276,97 @@ const postToConnection = async (postApi, connectionId, message) => {
     }
   }
 };
+
+// Get all attendees who have video enabled (sending video + pending sending video)
+const getAttendeesWithVideoEnabled = async (meetingId) => {
+  const attendees = await ddb.query({
+    TableName: VIDEO_SENDINGS_TABLE,
+    KeyConditionExpression: "MeetingId = :meetingId",
+    ExpressionAttributeValues: {
+      ":meetingId": { S: meetingId },
+    }
+  }).promise();
+
+  return attendees.Items.map(attendee => ({
+    attendeeId: attendee.AttendeeId.S,
+    attendeeRole: attendee.AttendeeRole.S,
+    meetingId: attendee.MeetingId.S,
+    connectionId: attendee.ConnectionId.S,
+    sendingVideoState: attendee.SendingVideoState.BOOL,
+    sendingTime: attendee.SendingTime.N,
+    ttl: attendee.TTL.N
+  }));
+}
+
+// Get the instructor connection details of a specific meeting
+const getInstructorOfMeeting = async (meetingId) => {
+  const connections = await ddb.query({
+    TableName: CONNECTION_TABLE,
+    IndexName: "MeetingIdIndex",
+    KeyConditionExpression: "MeetingId = :meetingId",
+    ExpressionAttributeValues: {
+      ":meetingId": { S: meetingId },
+      ":attendeeRole": { S: 'instructor' }
+    },
+    FilterExpression: "AttendeeRole = :attendeeRole"
+  }).promise();
+
+  const connection = connections.Items && connections.Items[0];
+  if (connection) {
+    return {
+      meetingId: connection.MeetingId.S,
+      attendeeId: connection.AttendeeId.S,
+      attendeeRole: connection.AttendeeRole.S,
+      connectionId: connection.ConnectionId.S,
+      ttl: connection.TTL.N
+    }
+  } else {
+    return null;
+  }
+}
+
+// Get the connection details of a specific attendee in a meeting
+const getConnectionFromMeetingIdAndAttendeeId = async (meetingId, attendeeId) => {
+  const connections = await ddb.query({
+    TableName: CONNECTION_TABLE,
+    IndexName: "MeetingIdIndex",
+    KeyConditionExpression: "MeetingId = :meetingId and AttendeeId = :attendeeId",
+    ExpressionAttributeValues: {
+      ":meetingId": { S: meetingId },
+      ":attendeeId": { S: attendeeId }
+    }
+  }).promise();
+
+  const connection = connections.Items && connections.Items[0];
+  if (connection) {
+    return {
+      meetingId: connection.MeetingId.S,
+      attendeeId: connection.AttendeeId.S,
+      attendeeRole: connection.AttendeeRole.S,
+      connectionId: connection.ConnectionId.S,
+      ttl: connection.TTL.N
+    }
+  } else {
+    return null;
+  }
+}
+
+const sendVideoEnabledAttendeesToInstructor = async (event, meetingId, instructorConnectionId) => {
+  const videoEnabledAttendees = await getAttendeesWithVideoEnabled(meetingId);
+  const messageForInstructor = {
+    type: 'list-available-videos',
+    message: videoEnabledAttendees
+  }
+  await postToConnection(apigwManagementApi(event), instructorConnectionId, JSON.stringify(messageForInstructor));
+}
+
+const getInstructorAndSendVideoEnabledAttendees = async (event, meetingId) => {
+  try {
+    const instructor = await getInstructorOfMeeting(meetingId);
+    if (instructor) {
+      await sendVideoEnabledAttendeesToInstructor(event, meetingId, instructor.connectionId);
+    }
+  } catch (e) {
+    console.error(`Failed to send video-enabled attendees to the instructor: ${e}`);
+  }
+}

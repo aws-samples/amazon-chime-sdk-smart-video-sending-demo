@@ -32,21 +32,22 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
   const [nameplate, setNameplate] = useState("");
   const meetingId = meetingManager?.meetingId!;
   const attendeeName = meetingManager.attendeeName!;
+  const attendeeRole = meetingManager.role;
 
   const toggleVideo = useCallback(async (previewEle: HTMLVideoElement | null): Promise<void> => {
-    if (isLocalVideoEnabled === 'enabled' || !meetingManager.selectedVideoInputDevice) {
+    if (isLocalVideoEnabled !== 'disabled' || !meetingManager.selectedVideoInputDevice) {
       audioVideo?.stopLocalVideoTile();
       previewEle && audioVideo?.stopVideoPreviewForVideoInput(previewEle);
       setIsLocalVideoEnabled('disabled');
       setNameplate("");
 
-      const payload = { meetingId: meetingId, attendeeId: selfAttendeeId };
+      const payload = { meetingId: meetingId, attendeeId: selfAttendeeId, attendeeRole: attendeeRole };
       videoSendingService?.sendMessage({
         type: SendVideoMessageType.STOP_VIDEO,
         payload: payload
       });
 
-    } else if (isLocalVideoEnabled === 'disabled') {
+    } else {
       await audioVideo?.chooseVideoInputDevice(meetingManager?.selectedVideoInputDevice);
       if (previewEle) {
         console.log("Start preview before getting remote command");
@@ -54,7 +55,7 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
         setNameplate(`${attendeeName} - preview`)
         setIsLocalVideoEnabled('pending');
 
-        const payload = { meetingId: meetingId, attendeeId: selfAttendeeId };
+        const payload = { meetingId: meetingId, attendeeId: selfAttendeeId, attendeeRole: attendeeRole };
         videoSendingService?.sendMessage({
           type: SendVideoMessageType.START_VIDEO,
           payload: payload
@@ -67,7 +68,7 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
 
   const value = useMemo(() => ({ isLocalVideoEnabled, setIsLocalVideoEnabled, nameplate, setNameplate, toggleVideo }), [
     isLocalVideoEnabled, setIsLocalVideoEnabled, nameplate, setNameplate, toggleVideo]);
-  
+
   return <LocalVideoContext.Provider value={value}>{children}</LocalVideoContext.Provider>;
 };
 

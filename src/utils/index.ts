@@ -1,5 +1,5 @@
 export const getVideoSendingWssUrl = () => {
-  return 'wss://1ft9bu028h.execute-api.us-east-1.amazonaws.com/Prod';
+  return 'wss://76hupm42wj.execute-api.us-east-1.amazonaws.com/Prod';
 };
 
 const isValidCSSHex = (hex: string) => {

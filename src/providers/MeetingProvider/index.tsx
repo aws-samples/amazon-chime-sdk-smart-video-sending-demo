@@ -2,7 +2,6 @@ import React, { useContext, useState, createContext } from 'react';
 
 import MeetingManager from './MeetingManager';
 import { AudioVideoProvider } from '../AudioVideoProvider';
-import { RosterProvider } from '../RosterProvider';
 import { DevicesProvider } from '../DevicesProvider';
 
 export const MeetingContext = createContext<MeetingManager | null>(null);
@@ -14,7 +13,7 @@ const MeetingProvider: React.FC = ({ children }) => {
     <MeetingContext.Provider value={meetingManager}>
       <AudioVideoProvider>
         <DevicesProvider>
-          <RosterProvider>{children}</RosterProvider>
+          {children}
         </DevicesProvider>
       </AudioVideoProvider>
     </MeetingContext.Provider>

@@ -101,7 +101,7 @@ exports.createMeeting = async (event, context, callback) => {
 
   if (!title) {
     response["statusCode"] = 400;
-    response["body"] = "Must provide title";
+    response["body"] = JSON.stringify({ error: "Must provide title" });
     callback(null, response);
     return;
   }
@@ -138,11 +138,12 @@ exports.join = async (event, context, callback) => {
   };
   const title = event.queryStringParameters.title;
   const name = event.queryStringParameters.name;
+  const role = event.queryStringParameters.role;
   const region = event.queryStringParameters.region || 'us-east-1';
 
-  if (!title || !name) {
+  if (!title || !name || !role) {
     response["statusCode"] = 400;
-    response["body"] = "Must provide title and name";
+    response["body"] = JSON.stringify({ error: "Must provide title, name and role" });
     callback(null, response);
     return;
   }
@@ -159,12 +160,24 @@ exports.join = async (event, context, callback) => {
     await putMeeting(title, meetingInfo);
   }
 
+  if (role === 'instructor' && meetingInfo.Meeting.Instructor) {
+    response["statusCode"] = 400;
+    response["body"] = JSON.stringify({ error: `Instructor already exists for meeting ${title}` });
+    callback(null, response);
+    return;
+  }
+
   console.info('Adding new attendee');
   const attendeeInfo = (await chime.createAttendee({
       MeetingId: meetingInfo.Meeting.MeetingId,
-      ExternalUserId: uuid(),
+      ExternalUserId: `${role}:${uuid()}`,
     }).promise());
   putAttendee(title, attendeeInfo.Attendee.AttendeeId, name);
+
+  if (role === 'instructor') {
+    meetingInfo.Meeting.Instructor = attendeeInfo.Attendee.AttendeeId;
+    putMeeting(title, meetingInfo);
+  }
 
   const joinInfo = {
     JoinInfo: {

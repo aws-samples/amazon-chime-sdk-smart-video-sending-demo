@@ -1,6 +1,10 @@
 ## About
 
-This demo showcases how to use the Amazon Chime SDK to show 16 video attendees when more than 16 attendees have enabled videos. It allows the attendee who enables local video most recently to share video to the meeting attendees.
+This demo showcases how to use the Amazon Chime SDK to support role-based smart video sending control.
+
+There are two different roles: student and instructor.
+- For students, they will always have their local video tile and the instructor’s video once the instructor turns it on.
+- The instructor, on the other hand, will have options to turn on/off remote videos of each individual student once they turn on their video.
 
 ## To run the app locally:
 

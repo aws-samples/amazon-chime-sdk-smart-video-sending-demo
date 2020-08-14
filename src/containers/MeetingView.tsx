@@ -10,6 +10,7 @@ import MeetingControlsContainer from './MeetingControlsContainer';
 import MeetingRoster from './MeetingRoster';
 import RemoteVideoGrid from './RemoteVideoGrid';
 import routes from '../constants/routes';
+import { RosterProvider } from '../providers/RosterProvider';
 
 const MeetingView = () => {
   const { meetingStatus } = useMeetingStatus();
@@ -28,9 +29,11 @@ const MeetingView = () => {
     <MeetingStatusProvider>
       <VideoSendingProvider>
         <LocalVideoToggleProvider>
-          <MeetingControlsContainer />
-          <MeetingRoster />
-          <RemoteVideoGrid />
+          <RosterProvider>
+            <MeetingControlsContainer />
+            <MeetingRoster />
+            <RemoteVideoGrid />
+          </RosterProvider>
         </LocalVideoToggleProvider>
       </VideoSendingProvider>
     </MeetingStatusProvider>

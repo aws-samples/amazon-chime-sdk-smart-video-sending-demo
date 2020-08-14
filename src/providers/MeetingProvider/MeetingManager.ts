@@ -53,6 +53,8 @@ class MeetingManager implements DeviceChangeObserver {
 
   attendeeName: string | null = null;
 
+  role: string | null = null;
+
   region: string | null = null;
 
   selectedAudioInputDevice: string | null = null;
@@ -104,12 +106,14 @@ class MeetingManager implements DeviceChangeObserver {
   async authenticate(
     meetingId: string,
     name: string,
+    role: string,
     region: string
   ): Promise<string> {
     this.meetingId = meetingId;
     this.attendeeName = name;
+    this.role = role;
     this.region = region;
-    const joinInfo = (await this.joinMeeting(meetingId, name, region)).JoinInfo;
+    const joinInfo = (await this.joinMeeting(meetingId, name, role, region)).JoinInfo;
     this.configuration = new MeetingSessionConfiguration(
       joinInfo.Meeting,
       joinInfo.Attendee
@@ -122,12 +126,13 @@ class MeetingManager implements DeviceChangeObserver {
   async joinMeeting(
     meetingId: string,
     name: string,
+    role: string,
     region: string
   ): Promise<any> {
     const response = await fetch(
       `${BASE_URL}join?title=${encodeURIComponent(
         meetingId
-      )}&name=${encodeURIComponent(name)}&region=${encodeURIComponent(region)}`,
+      )}&name=${encodeURIComponent(name)}&role=${role}&region=${encodeURIComponent(region)}`,
       {
         method: 'POST'
       }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useMeetingStatus, MeetingStatus } from '../providers/MeetingStatusProvider';
 import { useVideoSendingService } from '../providers/VideoSendingProvider';
-import { Message, SendVideoMessageType } from '../types';
+import { RemoteMessage, SendVideoMessageType } from '../types';
 import { useLocalVideoContext } from '../providers/LocalVideoToggleProvider';
 
 /* This handles meesage received from backend */
@@ -11,13 +11,13 @@ const useVideoSendingCommand = () => {
   const videoSendingService = useVideoSendingService();
   const [canSendLocalVideo, setCanSendLocalVideo] = useState(false);
   const { setIsLocalVideoEnabled } = useLocalVideoContext();
-  
+
   useEffect(() => {
     if (meetingStatus !== MeetingStatus.Succeeded) {
       return;
     }
     console.log('Setting up listeners for remote commands');
-    const callback = async (message: Message) => {
+    const callback = async (message: RemoteMessage) => {
       const { type } = message;
 
       if (type === SendVideoMessageType.START_VIDEO) {

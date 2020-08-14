@@ -2,7 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import {
   faVideo,
   faVideoSlash,
-  faSpinner,
 } from '@fortawesome/free-solid-svg-icons'
 
 import { useMeetingManager } from '../providers/MeetingProvider';
@@ -12,7 +11,7 @@ import useVideoSendingCommand from '../hooks/useVideoSendingCommand';
 import IconButton from '../components/IconButton';
 import ButtonGroup from '../components/ButtonGroup';
 import LocalVideo from './LocalVideo';
-  
+
 const VideoInputControl: React.FC = () => {
   const meetingManager = useMeetingManager();
   const audioVideo = useAudioVideo();
@@ -57,8 +56,7 @@ const VideoInputControl: React.FC = () => {
     <>
       <ButtonGroup>
         <IconButton
-          icon={isLocalVideoEnabled === 'enabled' ? faVideo : isLocalVideoEnabled === 'disabled' ? faVideoSlash : faSpinner}
-          disabled={isLocalVideoEnabled === 'pending'}
+          icon={isLocalVideoEnabled === 'disabled' ? faVideoSlash : faVideo}
           onClick={() => toggleVideo(videoEl.current)} />
       </ButtonGroup>
       <LocalVideo

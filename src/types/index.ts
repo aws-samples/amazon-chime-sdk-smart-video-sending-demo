@@ -15,14 +15,22 @@ export type DeviceTypeContext = {
 export type SendVideoMessagePayload = {
   meetingId: string;
   attendeeId: string;
+  isSendingVideo?: boolean;
 }
 
 export enum SendVideoMessageType {
   START_VIDEO = 'start-video',
   STOP_VIDEO = 'stop-video',
+  TOGGLE_STUDENT_VIDEO = 'toggle-student-video',
+  LIST_AVAILABLE_VIDEOS = 'list-available-videos',
 }
 
 export type Message = {
   type: SendVideoMessageType;
-  payload: SendVideoMessagePayload;
+  payload?: SendVideoMessagePayload;
+}
+
+export type RemoteMessage = {
+  type: SendVideoMessageType;
+  message: any;
 }

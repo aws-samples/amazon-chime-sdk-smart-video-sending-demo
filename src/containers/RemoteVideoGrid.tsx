@@ -7,12 +7,15 @@ import { VideoTileState } from 'amazon-chime-sdk-js';
 
 import { useAudioVideo } from '../providers/AudioVideoProvider';
 import { useRoster } from '../providers/RosterProvider';
+import { useMeetingManager } from '../providers/MeetingProvider';
 import VideoGrid from '../components/VideoGrid';
 import RemoteVideo from '../components/RemoteVideo';
 import { MAX_REMOTE_VIDEOS } from '../constants';
 
 const RemoteVideoGrid: React.FC = () => {
   const roster = useRoster();
+  const meetingManager = useMeetingManager();
+  const attendeeRole = meetingManager?.role;
   const tiles: { [index: number]: number } = {};
   const videoElements: HTMLVideoElement[] = []; // an array of 16 HTMLVideoElement objects
   const [visibleIndices, setVisibleIndices] = useState<{
@@ -50,8 +53,13 @@ const RemoteVideoGrid: React.FC = () => {
       return;
     }
     const videoTileDidUpdate = (tileState: VideoTileState) => {
-      const { boundAttendeeId, localTile, isContent, tileId } = tileState;
+      const { boundAttendeeId, localTile, isContent, tileId, boundExternalUserId } = tileState;
       if (!boundAttendeeId || localTile || isContent || !tileId) {
+        return;
+      }
+      // student will ignore video from other students
+      if (attendeeRole === 'student' && boundExternalUserId?.startsWith('student')) {
+        audioVideo.pauseVideoTile(tileId);
         return;
       }
       const index = acquireTileIndex(tileId);
@@ -61,7 +69,7 @@ const RemoteVideoGrid: React.FC = () => {
         [index]: { boundAttendeeId: boundAttendeeId },
       }));
     };
-    
+
     const videoTileWasRemoved = (tileId: number) => {
       const index = releaseTileIndex(tileId);
       setVisibleIndices((previousVisibleIndices) => ({
@@ -69,9 +77,10 @@ const RemoteVideoGrid: React.FC = () => {
         [index]: null,
       }));
     };
+
     const observers = { videoTileDidUpdate, videoTileWasRemoved };
     audioVideo.addObserver(observers);
-    
+
     return () => {
       audioVideo.removeObserver(observers);
     };

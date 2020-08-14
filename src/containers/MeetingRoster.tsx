@@ -18,13 +18,16 @@ const MeetingRoster = () => {
   const roster = useRoster();
   const activeSpeakers = useActiveSpeakerDetector();
   const attendees = Object.values(roster).map(item => {
-    const { id, name } = item;
+    const { id, name, videoEnabled, videoSending, attendeeRole } = item;
     return (
       <RosterItem
         key={id}
         id={id}
         name={name}
         isActiveSpeaker={activeSpeakers.includes(id)}
+        videoEnabled={videoEnabled}
+        videoSending={videoSending}
+        attendeeRole={attendeeRole}
       />
     );
   });

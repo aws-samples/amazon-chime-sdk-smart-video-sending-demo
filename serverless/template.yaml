@@ -244,9 +244,25 @@ Resources:
       AttributeDefinitions:
         - AttributeName: 'ConnectionId'
           AttributeType: 'S'
+        - AttributeName: 'MeetingId'
+          AttributeType: 'S'
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
       KeySchema:
         - AttributeName: 'ConnectionId'
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: 'MeetingIdIndex'
+          KeySchema:
+            - AttributeName: 'MeetingId'
+              KeyType: HASH
+            - AttributeName: 'AttendeeId'
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -363,6 +379,12 @@ Resources:
             TableName: !Ref VideoSendingConnections
         - DynamoDBCrudPolicy:
             TableName: !Ref VideoSendings
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${VideoSendingWebSocketApi}/*'
       Environment:
         Variables:
           CONNECTION_TABLE: !Ref VideoSendingConnections

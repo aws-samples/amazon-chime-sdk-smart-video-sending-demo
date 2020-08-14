@@ -12,7 +12,7 @@ import {
 
 import { useMeetingManager } from './MeetingProvider';
 import { getVideoSendingWssUrl } from '../utils';
-import { Message } from '../types';
+import { Message, RemoteMessage } from '../types';
 
 export const DEFAULT_WEB_SOCKET_TIMEOUT_MS = 10000;
 
@@ -21,14 +21,16 @@ class VideoSendingService {
   private wsStabilizer: any;
 
   websocket: ReconnectingPromisedWebSocket | null = null;
-  messageUpdateCallbacks: ((message: Message) => void)[] = [];
+  messageUpdateCallbacks: ((message: RemoteMessage) => void)[] = [];
   meetingId: string | null | undefined;
   attendeeId: string | null | undefined;
+  attendeeRole: string | null | undefined;
 
   constructor() {
     const meetingManager = useMeetingManager();
     this.meetingId = meetingManager?.meetingId;
     this.attendeeId = meetingManager?.configuration?.credentials?.attendeeId;
+    this.attendeeRole = meetingManager?.role;
   }
 
   private startWsStabilizer = () => {
@@ -37,7 +39,7 @@ class VideoSendingService {
       message: "ping",
       data: JSON.stringify({type: "ping"})
     };
-    
+
     this.wsStabilizer = setInterval(() => {
       try {
         this.websocket?.send(JSON.stringify(pingMessage));
@@ -61,7 +63,7 @@ class VideoSendingService {
     }
 
     const baseUrl = getVideoSendingWssUrl();
-    const url = `${baseUrl}?meetingId=${this.meetingId}&attendeeId=${this.attendeeId}`;
+    const url = `${baseUrl}?meetingId=${this.meetingId}&attendeeId=${this.attendeeId}&attendeeRole=${this.attendeeRole}`;
     this.websocket = new ReconnectingPromisedWebSocket(
       url,
       [],
@@ -74,7 +76,7 @@ class VideoSendingService {
       // Initiate WS stabilizer
       this.startWsStabilizer();
     });
-    
+
     await this.websocket.open(VideoSendingService.WEB_SOCKET_TIMEOUT_MS);
 
     this.websocket.addEventListener('message', (event: Event) => {
@@ -85,7 +87,7 @@ class VideoSendingService {
 
         this.publishMessageUpdate({
           type: data.type,
-          payload: data.payload,
+          message: data.message,
         });
       } catch (e) {
         console.log("Error:", e);
@@ -106,7 +108,7 @@ class VideoSendingService {
       console.error("No websocket");
       return;
     }
-    
+
     const message = {
       message: "sendmessage",
       data: JSON.stringify(msg)
@@ -118,18 +120,18 @@ class VideoSendingService {
     }
   }
 
-  subscribeToMessageUpdate = (callback: (message: Message) => void) => {
+  subscribeToMessageUpdate = (callback: (message: RemoteMessage) => void) => {
     this.messageUpdateCallbacks.push(callback);
   };
- 
-  unsubscribeFromMessageUpdate = (callback: (message: Message) => void) => {
+
+  unsubscribeFromMessageUpdate = (callback: (message: RemoteMessage) => void) => {
     const index = this.messageUpdateCallbacks.indexOf(callback);
     if (index !== -1) {
       this.messageUpdateCallbacks.splice(index, 1);
     }
   };
 
-  private publishMessageUpdate = (message: Message) => {
+  private publishMessageUpdate = (message: RemoteMessage) => {
     for (let i = 0; i < this.messageUpdateCallbacks.length; i += 1) {
       const callback = this.messageUpdateCallbacks[i];
       callback(message);

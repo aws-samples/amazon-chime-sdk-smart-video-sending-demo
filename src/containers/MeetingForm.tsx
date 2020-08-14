@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Flex from '../components/Flex'
 import FormField from '../components/FormField'
 import Input from '../components/Input';
+import Select from '../components/Select';
 import Modal from '../components/Modal';
 import ModalBody from '../components/Modal/ModalBody';
 import ModalHeader from '../components/Modal/ModalHeader';
@@ -40,6 +41,7 @@ const MeetingForm: React.FC = () => {
   const meetingManager = useMeetingManager();
   const [meetingId, setMeetingId] = useState('');
   const [inputName, setInputName] = useState('');
+  const [attendeeRole, setAttendeeRole] = useState('student');
   const [isLoading, setIsLoading] = useState(false);
   const { errorMessage, updateErrorMessage } = useContext(getErrorContext());
   const history = useHistory();
@@ -48,7 +50,7 @@ const MeetingForm: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const meeting = await meetingManager?.authenticate(meetingId, inputName, 'us-east-1');
+      const meeting = await meetingManager?.authenticate(meetingId, inputName, attendeeRole, 'us-east-1');
       console.log('Join meeting info ', meeting);
       history.push(routes.DEVICE);
     } catch (error) {
@@ -61,7 +63,19 @@ const MeetingForm: React.FC = () => {
     setMeetingId('');
     setInputName('');
     setIsLoading(false);
+    setAttendeeRole('student');
   };
+
+  const attendeeRoleOptions = [
+    {
+      value: 'student',
+      label: 'Student',
+    },
+    {
+      value: 'instructor',
+      label: 'Instructor',
+    }
+  ];
 
   return (
     <StyledDiv>
@@ -91,6 +105,15 @@ const MeetingForm: React.FC = () => {
           setInputName(e.target.value)
         }
       />
+      <FormField
+        field={Select}
+        options={attendeeRoleOptions}
+        onChange={(e: ChangeEvent<HTMLInputElement>): void =>
+          setAttendeeRole(e.target.value)
+        }
+        value={attendeeRole}
+        label="Attendee Role"
+      />
       <Flex
         container
         layout="fill-space-centered"
@@ -107,7 +130,7 @@ const MeetingForm: React.FC = () => {
           <ModalHeader title={`Unable to join meeting: ${meetingId}`} />
           <ModalBody>
             <StyledP>
-              There was an issue finding that meeting. The meeting may have already ended, or your authorization may have expired.
+              Failed to join the meeting. {errorMessage}
             </StyledP>
           </ModalBody>
           <ModalButtonGroup
@@ -116,7 +139,7 @@ const MeetingForm: React.FC = () => {
         </Modal>
       )}
     </form>
-    </StyledDiv>  
+    </StyledDiv>
   );
 };
 

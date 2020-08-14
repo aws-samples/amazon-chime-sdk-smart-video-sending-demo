@@ -49,6 +49,7 @@ const server = require(protocol).createServer(options, async (request, response)
       const query = url.parse(request.url, true).query;
       const title = query.title;
       const name = query.name;
+      const attendeeRole = query.role;
       if (!meetingCache[title]) {
         meetingCache[title] = await chime
           .createMeeting({
@@ -61,6 +62,11 @@ const server = require(protocol).createServer(options, async (request, response)
           .promise();
         attendeeCache[title] = {};
       }
+
+      if (attendeeRole === 'instructor' && meetingCache[title].Meeting.Instructor) {
+        throw new Error(`Instructor already exists for meeting ${title}`)
+      }
+
       const joinInfo = {
         JoinInfo: {
           Title: title,
@@ -69,13 +75,18 @@ const server = require(protocol).createServer(options, async (request, response)
             await chime
               .createAttendee({
                 MeetingId: meetingCache[title].Meeting.MeetingId,
-                ExternalUserId: uuid(),
+                ExternalUserId: `${attendeeRole}:${uuid()}`,
               })
               .promise()
           ).Attendee,
         },
       };
+
       attendeeCache[title][joinInfo.JoinInfo.Attendee.AttendeeId] = name;
+      if (attendeeRole === 'instructor') {
+        meetingCache[title].Meeting.Instructor = joinInfo.JoinInfo.Attendee.AttendeeId;
+      }
+
       response.statusCode = 201;
       response.setHeader('Content-Type', 'application/json');
       response.write(JSON.stringify(joinInfo), 'utf8');
