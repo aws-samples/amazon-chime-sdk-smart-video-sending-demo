@@ -26,11 +26,10 @@ class VideoSendingService {
   attendeeId: string | null | undefined;
   attendeeRole: string | null | undefined;
 
-  constructor() {
-    const meetingManager = useMeetingManager();
-    this.meetingId = meetingManager?.meetingId;
-    this.attendeeId = meetingManager?.configuration?.credentials?.attendeeId;
-    this.attendeeRole = meetingManager?.role;
+  constructor(meetingId: string, attendeeId: string, role: string) {
+    this.meetingId = meetingId;
+    this.attendeeId = attendeeId;
+    this.attendeeRole = role;
   }
 
   private startWsStabilizer = () => {
@@ -152,7 +151,13 @@ function useVideoSendingService() {
 }
 
 const VideoSendingProvider: React.FC = ({ children }) => {
-  const [videoSendingService] = useState<VideoSendingService>(() => new VideoSendingService());
+  const meetingManager = useMeetingManager();
+  const meetingId = meetingManager.meetingId;
+  const attendeeId = meetingManager.configuration?.credentials?.attendeeId;
+  const role = meetingManager.role;
+  
+  const [videoSendingService] = useState<VideoSendingService>(
+    () => new VideoSendingService(meetingId!, attendeeId!, role!));
 
   return (
     <VideoSendingServiceContext.Provider value={videoSendingService}>
