@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 const awsPath: string = '/Prod';
 const rootPath: string = window.location.href.includes(awsPath) ? `${awsPath}/` : '/';
 
