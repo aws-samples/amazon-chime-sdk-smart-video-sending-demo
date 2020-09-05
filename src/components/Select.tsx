@@ -1,4 +1,7 @@
-import React, { ChangeEvent, forwardRef, Ref, InputHTMLAttributes,  } from 'react';
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+import React, { ChangeEvent, forwardRef, Ref, InputHTMLAttributes, } from 'react';
 import styled from "styled-components";
 
 import { hexTorgba } from '../utils';

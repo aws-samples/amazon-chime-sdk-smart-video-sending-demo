@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 export const getVideoSendingWssUrl = () => {
   return 'wss://1ft9bu028h.execute-api.us-east-1.amazonaws.com/Prod';
 };

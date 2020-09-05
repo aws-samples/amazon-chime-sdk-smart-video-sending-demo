@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useEffect } from 'react';
 
 import { useMeetingStatus, MeetingStatus } from '../providers/MeetingStatusProvider';
