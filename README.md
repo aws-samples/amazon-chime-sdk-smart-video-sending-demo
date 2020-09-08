@@ -35,6 +35,10 @@ The script will create an S3 bucket and CloudFormation stack
 with Lambda and API Gateway resources required to run the demo. After the script
 finishes, it will output a URL that can be opened in a browser.
 
+## Disclaimer: 
+
+Deploying the Amazon Chime SDK Smart Video demo application contained in this repository will cause your AWS Account to be billed for services, including the Amazon Chime SDK, used by the application.
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
