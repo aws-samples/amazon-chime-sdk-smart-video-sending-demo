@@ -6,9 +6,11 @@ This demo showcases how to use the Amazon Chime SDK to show 16 video attendees w
 
 1. Install dependencies: `npm install`
 
-2. Start the webpack server and the node server concurrently: `npm run start`
+2. Build assets: `npm run build`
 
-3. Open https://0.0.0.0:9000/ in your browser
+3. Start the webpack server and the node server concurrently: `npm run start`
+
+4. Open https://0.0.0.0:9000/ in your browser
 
 ## To deploy the serverless device demo
 
