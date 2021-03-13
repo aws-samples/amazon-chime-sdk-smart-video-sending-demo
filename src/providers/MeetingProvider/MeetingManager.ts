@@ -162,8 +162,7 @@ class MeetingManager implements DeviceChangeObserver {
         LogLevel.INFO
       );
     }
-    const deviceController = new DefaultDeviceController(logger);
-    configuration.enableWebAudio = false;
+    const deviceController = new DefaultDeviceController(logger, { enableWebAudio: false });
     this.meetingSession = new DefaultMeetingSession(configuration, logger, deviceController);
     this.audioVideo = this.meetingSession.audioVideo;
     this.audioVideo.addDeviceChangeObserver(this);
