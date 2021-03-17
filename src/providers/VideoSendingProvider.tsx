@@ -6,16 +6,14 @@ import React, {
   useState,
   createContext,
 } from "react";
-import {
-  DefaultPromisedWebSocketFactory,
-  ReconnectingPromisedWebSocket,
-  FullJitterBackoff,
-  DefaultDOMWebSocketFactory
-} from "amazon-chime-sdk-js";
 
+import { FullJitterBackoff } from 'amazon-chime-sdk-js';
 import { useMeetingManager } from './MeetingProvider';
 import { getVideoSendingWssUrl } from '../utils';
 import { Message } from '../types';
+import ReconnectingPromisedWebSocket from '../utils/ReconnectingPromisedWebSocket';
+import DefaultDOMWebSocketFactory from '../utils/DefaultDOMWebSocketFactory';
+import DefaultPromisedWebSocketFactory from '../utils/DefaultPromisedWebSocketFactory';
 
 export const DEFAULT_WEB_SOCKET_TIMEOUT_MS = 10000;
 
