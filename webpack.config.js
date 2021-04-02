@@ -3,7 +3,6 @@
 
 /* eslint-disable */
 const path = require('path');
-const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 /* eslint-enable */
 
@@ -16,8 +15,7 @@ module.exports = {
       template: __dirname + `/app/${app}.html`,
       filename: __dirname + `/dist/${app}.html`,
       inject: 'head',
-    }),
-    new HtmlWebpackInlineSourcePlugin(),
+    })
   ],
   entry: [`./src/index.tsx`],
   output: {
@@ -29,10 +27,10 @@ module.exports = {
   },
   resolve: {
     extensions: ['.webpack.js', '.web.js', '.ts', '.tsx', '.js'],
-  },
-  node: {
-    fs: 'empty',
-    tls: 'empty'
+    fallback: {
+      fs: false,
+      tls: false,
+    }
   },
   module: {
     rules: [
@@ -75,5 +73,5 @@ module.exports = {
     hints: false,
   },
   mode: 'development',
-  devtool: 'cheap-module-eval-source-map',
+  devtool: 'eval-cheap-module-source-map',
 };
