@@ -39,7 +39,6 @@
     "resize-observer-polyfill": "^1.5.1",
     "source-map-loader": "^0.2.4",
     "styled-system": "^5.1.5",
-    "terser-webpack-plugin": "^1.2.3",
     "ts-loader": "^6.2.1",
     "typescript": "^3.7.5",
     "webpack": "^4.41.6",
