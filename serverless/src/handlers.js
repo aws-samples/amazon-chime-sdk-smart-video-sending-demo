@@ -11,8 +11,6 @@ const oneDayFromNow = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
 // Read resource names from the environment
 const meetingsTableName = process.env.MEETINGS_TABLE_NAME;
 const attendeesTableName = process.env.ATTENDEES_TABLE_NAME;
-const sqsQueueArn = process.env.SQS_QUEUE_ARN;
-const provideQueueArn = process.env.USE_EVENT_BRIDGE === 'false';
 const logGroupName = process.env.BROWSER_LOG_GROUP_NAME;
 
 // Create a unique id
@@ -82,16 +80,6 @@ const putAttendee = async (title, attendeeId, name) => {
   }).promise();
 }
 
-// Set up SQS notifications
-function getNotificationsConfig() {
-  if (provideQueueArn) {
-    return  {
-      SqsQueueArn: sqsQueueArn,
-    };
-  }
-  return {}
-}
-
 exports.createMeeting = async (event, context, callback) => {
   var response = {
     "statusCode": 200,
@@ -114,7 +102,6 @@ exports.createMeeting = async (event, context, callback) => {
     const request = {
       ClientRequestToken: uuid(),
       MediaRegion: region,
-      NotificationsConfiguration: getNotificationsConfig(),
     };
     console.info('Creating new meeting: ' + JSON.stringify(request));
     meetingInfo = await chime.createMeeting(request).promise();
@@ -155,7 +142,6 @@ exports.join = async (event, context, callback) => {
     const request = {
       ClientRequestToken: uuid(),
       MediaRegion: region,
-      NotificationsConfiguration: getNotificationsConfig(),
     };
     console.info('Creating new meeting before joining: ' + JSON.stringify(request));
     meetingInfo = await chime.createMeeting(request).promise();
@@ -213,22 +199,6 @@ exports.attendee = async (event, context, callback) => {
   };
   response.body = JSON.stringify(attendeeInfo, '', 2);
   callback(null, response);
-}
-
-// Called when SQS receives records of meeting events and logs out those records
-exports.sqs_handler = async (event, context, callback) => {
-  const records = event.Records;
-
-  console.log(records);
-
-  return {};
-}
-
-// Called when EventBridge receives a meeting event and logs out the event
-exports.event_bridge_handler = async (event, context, callback) => {
-  console.log(event);
-
-  return {};
 }
 
 async function ensureLogStream(cloudWatchClient, logStreamName) {
