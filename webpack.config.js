@@ -3,8 +3,8 @@
 
 /* eslint-disable */
 const path = require('path');
-const HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const InlineChunkHtmlPlugin = require('react-dev-utils/InlineChunkHtmlPlugin');
 /* eslint-enable */
 
 const app = 'meeting';
@@ -17,9 +17,8 @@ module.exports = {
       filename: __dirname + `/dist/${app}.html`,
       inject: 'head',
     }),
-    new HtmlWebpackInlineSourcePlugin(),
+    new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [new RegExp(`${app}`)]),
   ],
-  entry: [`./src/index.tsx`],
   output: {
     path: path.join(__dirname, 'dist'),
     filename: `${app}-bundle.js`,
@@ -29,17 +28,17 @@ module.exports = {
   },
   resolve: {
     extensions: ['.webpack.js', '.web.js', '.ts', '.tsx', '.js'],
-  },
-  node: {
-    fs: 'empty',
-    tls: 'empty'
+    fallback: {
+      fs: false,
+      tls: false,
+    },
   },
   module: {
     rules: [
       {
         test: /\.(tsx|ts)?$/,
         exclude: /node_modules/,
-        loader: 'awesome-typescript-loader',
+        loader: 'ts-loader',
       },
       {
         enforce: 'pre',
@@ -53,27 +52,33 @@ module.exports = {
     historyApiFallback: true,
     proxy: {
       '/': {
-        target: 'http://localhost:8080',
-        bypass: function(req, _res, _proxyOptions) {
+        target: 'http://127.0.0.1:8080',
+        bypass: function (req, res, proxyOptions) {
           if (req.headers.accept.indexOf('html') !== -1) {
             console.log('Skipping proxy for browser request.');
             return `/${app}.html`;
           }
         },
       },
+      '/join': 'http://127.0.0.1:8080',
+      '/attendee': 'http://127.0.0.1:8080',
+      '/meeting': 'http://127.0.0.1:8080',
+      '/logs': 'http://127.0.0.1:8080',
+      '/end': 'http://127.0.0.1:8080',
     },
-    contentBase: path.join(__dirname, 'dist'),
-    index: `${app}.html`,
-    compress: true,
+    devMiddleware: {
+      index: `dist/${app}.html`,
+    },
+    static: {
+      publicPath: '/',
+    },
     hot: true,
     host: '0.0.0.0',
-    disableHostCheck: true,
     port: 9000,
-    https: true,
+    server: 'https'
   },
   performance: {
     hints: false,
   },
   mode: 'development',
-  devtool: 'cheap-module-eval-source-map',
 };

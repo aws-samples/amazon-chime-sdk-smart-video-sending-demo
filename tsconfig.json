@@ -24,7 +24,6 @@
     "downlevelIteration": true,
     "experimentalDecorators": true,
     "declaration": true,
-    "noEmit": true,
     "suppressImplicitAnyIndexErrors": true,
     "emitDecoratorMetadata": true
   },
