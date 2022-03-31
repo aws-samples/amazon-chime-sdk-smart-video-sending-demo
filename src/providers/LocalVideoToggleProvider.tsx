@@ -40,6 +40,7 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
     if (isLocalVideoEnabled === 'enabled' || !meetingManager.selectedVideoInputDevice) {
       audioVideo?.stopLocalVideoTile();
       previewEle && audioVideo?.stopVideoPreviewForVideoInput(previewEle);
+      await audioVideo?.chooseVideoInputDevice(null);
       setIsLocalVideoEnabled('disabled');
       setNameplate("");
 
