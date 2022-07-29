@@ -11,7 +11,8 @@ import {
   Logger,
   LogLevel,
   MeetingSessionConfiguration,
-  MeetingSessionPOSTLogger
+  POSTLogger,
+  POSTLoggerOptions
 } from 'amazon-chime-sdk-js';
 
 enum DevicePermissionStatus {
@@ -151,16 +152,19 @@ class MeetingManager implements DeviceChangeObserver {
       location.hostname === '127.0.0.1' ||
       location.hostname === '0.0.0.0'
     ) {
-      logger = new ConsoleLogger('SDK', LogLevel.WARN);
+      logger = new ConsoleLogger('SDK', LogLevel.INFO);
     } else {
-      logger = new MeetingSessionPOSTLogger(
-        'SDK',
-        configuration,
-        MeetingManager.LOGGER_BATCH_SIZE,
-        MeetingManager.LOGGER_INTERVAL_MS,
-        `${BASE_URL}logs`,
-        LogLevel.INFO
-      );
+      const options: POSTLoggerOptions = {
+        url: `${BASE_URL}logs`,
+        batchSize: MeetingManager.LOGGER_BATCH_SIZE,
+        intervalMs: MeetingManager.LOGGER_INTERVAL_MS,
+        logLevel: LogLevel.INFO,
+        metadata: {
+          appName: 'smart-sending-video',
+          meetingId: configuration.meetingId,
+        },
+      }
+      logger = new POSTLogger(options);
     }
     const deviceController = new DefaultDeviceController(logger, { enableWebAudio: false });
     this.meetingSession = new DefaultMeetingSession(configuration, logger, deviceController);
@@ -208,15 +212,15 @@ class MeetingManager implements DeviceChangeObserver {
         method: 'POST'
       });
     }
-    this.leaveMeeting();
+    await this.leaveMeeting();
   }
 
   async leaveMeeting(): Promise<void> {
-    await this.audioVideo?.stopLocalVideoTile();
-    await this.audioVideo?.chooseVideoInputDevice(null);
+    this.audioVideo?.stopLocalVideoTile();
+    await this.audioVideo?.stopVideoInput();
 
     this.audioVideo?.unbindAudioElement();
-    await this.audioVideo?.chooseAudioInputDevice(null);
+    await this.audioVideo?.stopAudioInput();
     this.audioVideo?.stop();
 
     this.initializeMeetingManager();
@@ -231,7 +235,7 @@ class MeetingManager implements DeviceChangeObserver {
       this.audioInputDevices.length
     ) {
       this.selectedAudioInputDevice = this.audioInputDevices[0].deviceId;
-      await this.audioVideo?.chooseAudioInputDevice(
+      await this.audioVideo?.startAudioInput(
         this.audioInputDevices[0].deviceId
       );
       this.publishSelectedAudioInputDeviceChange();
@@ -242,7 +246,7 @@ class MeetingManager implements DeviceChangeObserver {
       this.audioOutputDevices.length
     ) {
       this.selectedAudioOutputDevice = this.audioOutputDevices[0].deviceId;
-      await this.audioVideo?.chooseAudioOutputDevice(
+      await this.audioVideo?.chooseAudioOutput(
         this.audioOutputDevices[0].deviceId
       );
       this.publishSelectedAudioOutputDeviceChange();
@@ -253,7 +257,7 @@ class MeetingManager implements DeviceChangeObserver {
       this.videoInputDevices.length
     ) {
       this.selectedVideoInputDevice = this.videoInputDevices[0].deviceId;
-      await this.audioVideo?.chooseVideoInputDevice(
+      await this.audioVideo?.startVideoInput(
         this.videoInputDevices[0].deviceId
       );
       this.publishSelectedVideoInputDeviceChange();
@@ -262,7 +266,7 @@ class MeetingManager implements DeviceChangeObserver {
 
   selectAudioInputDevice = async (deviceId: string): Promise<void> => {
     try {
-      await this.audioVideo?.chooseAudioInputDevice(deviceId);
+      await this.audioVideo?.startAudioInput(deviceId);
       this.selectedAudioInputDevice = deviceId;
       this.publishSelectedAudioInputDeviceChange();
     } catch (error) {
@@ -272,7 +276,7 @@ class MeetingManager implements DeviceChangeObserver {
 
   selectAudioOutputDevice = async (deviceId: string): Promise<void> => {
     try {
-      await this.audioVideo?.chooseAudioOutputDevice(deviceId);
+      await this.audioVideo?.chooseAudioOutput(deviceId);
       this.selectedAudioOutputDevice = deviceId;
       this.publishSelectedAudioOutputDeviceChange();
     } catch (error) {
@@ -283,10 +287,10 @@ class MeetingManager implements DeviceChangeObserver {
   selectVideoInputDevice = async (deviceId: string): Promise<void> => {
     try {
       if (deviceId === null) {
-        await this.audioVideo?.chooseVideoInputDevice(null);
+        await this.audioVideo?.stopVideoInput();
         this.selectedVideoInputDevice = null;
       } else {
-        await this.audioVideo?.chooseVideoInputDevice(deviceId);
+        await this.audioVideo?.startVideoInput(deviceId);
         this.selectedVideoInputDevice = deviceId;
       }
       this.publishSelectedVideoInputDeviceChange();

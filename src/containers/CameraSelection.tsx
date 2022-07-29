@@ -32,8 +32,10 @@ const CameraSelection = () => {
       audioVideo.startVideoPreviewForVideoInput(videoEl.current);
 
     return () => {
-      videoEl.current &&
+      if (videoEl.current) {
         audioVideo.stopVideoPreviewForVideoInput(videoEl.current);
+        audioVideo.stopVideoInput();
+      }
     };
   }, [audioVideo]);
 

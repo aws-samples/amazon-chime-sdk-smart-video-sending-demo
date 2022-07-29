@@ -40,7 +40,7 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
     if (isLocalVideoEnabled === 'enabled' || !meetingManager.selectedVideoInputDevice) {
       audioVideo?.stopLocalVideoTile();
       previewEle && audioVideo?.stopVideoPreviewForVideoInput(previewEle);
-      await audioVideo?.chooseVideoInputDevice(null);
+      await audioVideo?.stopVideoInput();
       setIsLocalVideoEnabled('disabled');
       setNameplate("");
 
@@ -51,7 +51,7 @@ const LocalVideoToggleProvider: React.FC = ({ children }) => {
       });
 
     } else if (isLocalVideoEnabled === 'disabled') {
-      await audioVideo?.chooseVideoInputDevice(meetingManager?.selectedVideoInputDevice);
+      await audioVideo?.startVideoInput(meetingManager?.selectedVideoInputDevice);
       if (previewEle) {
         console.log("Start preview before getting remote command");
         audioVideo?.startVideoPreviewForVideoInput(previewEle);
