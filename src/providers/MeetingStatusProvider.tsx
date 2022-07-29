@@ -54,7 +54,6 @@ function MeetingStatusProvider(props: Props) {
     };
 
     const videoTileDidUpdate = (tileState: VideoTileState) => {
-      // console.log('Observer videoTileDidUpdate', tileState);
       if (!tileState.boundAttendeeId) {
         return;
       }
@@ -64,12 +63,10 @@ function MeetingStatusProvider(props: Props) {
     };
 
     const videoTileWasRemoved = (tileId: number) => {
-      // console.log('Observer videoTileWasRemoved', tileId);
       setMeetingStatus(MeetingStatus.Succeeded);
     };
 
     const audioVideoDidStop = (sessionStatus: MeetingSessionStatus) => {
-      // console.log('Observer audioVideoDidStop');
       const sessionStatusCode = sessionStatus.statusCode();
       if (sessionStatusCode === MeetingSessionStatusCode.Left) {
         /*
@@ -78,9 +75,11 @@ function MeetingStatusProvider(props: Props) {
         */
         console.log('You left the session');
       } else if (
-        sessionStatusCode === MeetingSessionStatusCode.AudioCallEnded
+        sessionStatusCode === MeetingSessionStatusCode.MeetingEnded
       ) {
         console.log('The session has ended');
+        // If remote attendee ends the meeting (not leaving ending the meeting for all), then self-leave on rest of the connected clients.
+        meetingManager.leaveMeeting();
         history.push(routes.HOME);
       } else {
         console.log(

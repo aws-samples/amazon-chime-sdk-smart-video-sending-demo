@@ -29,13 +29,13 @@ const VideoInputControl: React.FC = () => {
       return;
     }
     const sendLocalVideo = async () => {
-      await audioVideo.chooseVideoInputDevice(meetingManager.selectedVideoInputDevice);
+      await audioVideo.startVideoInput(meetingManager.selectedVideoInputDevice);
       audioVideo.startLocalVideoTile();
       setNameplate(attendeeName);
     }
 
     const sendLocalVideoPreview = async () => {
-      await audioVideo.chooseVideoInputDevice(meetingManager.selectedVideoInputDevice);
+      await audioVideo.startVideoInput(meetingManager.selectedVideoInputDevice);
       if (videoEl.current) {
         audioVideo.startVideoPreviewForVideoInput(videoEl.current);
         setNameplate(`${attendeeName} - preview`);
@@ -47,11 +47,13 @@ const VideoInputControl: React.FC = () => {
     if (canSendLocalVideo && isLocalVideoEnabled !== 'disabled') {
       if (videoEl.current) {
         audioVideo.stopVideoPreviewForVideoInput(videoEl.current);
+        audioVideo.stopVideoInput();
       }
       sendLocalVideo();
     }
     if (!canSendLocalVideo && isLocalVideoEnabled === 'enabled') {
       audioVideo.stopLocalVideoTile();
+      audioVideo.stopVideoInput();
       sendLocalVideoPreview();
     }
   }, [audioVideo, canSendLocalVideo]);
