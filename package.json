@@ -40,7 +40,7 @@
     "styled-system": "^5.1.5",
     "ts-loader": "^9.4.2",
     "typescript": "^3.7.5",
-    "webpack": "^5.65.0",
+    "webpack": "^5.76.0",
     "webpack-cli": "^4.9.1",
     "webpack-dev-server": "^4.6.0"
   }
