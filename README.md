@@ -1,5 +1,7 @@
 ## About
 
+This repo has been archived. Please refer to https://aws.github.io/amazon-chime-sdk-js/modules/prioritybased_downlink_policy.html in order ot implement this use case.
+
 This demo showcases how to use the Amazon Chime SDK to show 16 video attendees when more than 16 attendees have enabled videos. It allows the attendee who enables local video most recently to share video to the meeting attendees.
 
 ## To run the app locally:
